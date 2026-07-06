@@ -1,4 +1,5 @@
 using FilmSystem.API.Services;
+using FilmSystem.API.Services.Omdb;
 using FilmSystem.Domain.Repositories;
 using FilmSystem.Infrastructure.Data;
 using FilmSystem.Infrastructure.Repositories;
@@ -23,6 +24,18 @@ builder.Services.AddDbContext<FilmSystemContext>(options =>
 // u okviru istog zahteva dele isti DbContext
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IRezervacijaStateMachineService, RezervacijaStateMachineService>();
+
+// OMDb integracija - named HttpClient sa BaseAddress iz konfiguracije i
+// standardnim resilience handler-om (retry sa exponential backoff + timeout)
+// iz Microsoft.Extensions.Http.Resilience paketa.
+builder.Services.AddHttpClient(OmdbService.HttpClientName, client =>
+{
+    var baseUrl = builder.Configuration["Omdb:BaseUrl"] ?? "https://www.omdbapi.com/";
+    client.BaseAddress = new Uri(baseUrl);
+})
+.AddStandardResilienceHandler();
+
+builder.Services.AddScoped<IOmdbService, OmdbService>();
 
 // FluentValidation - automatski trazi sve klase koje nasledjuju AbstractValidator<T>
 // u ovoj (API) assembly-ju i registruje ih; AddFluentValidationAutoValidation

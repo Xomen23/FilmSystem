@@ -5,9 +5,14 @@ VisualStudioVersion = 17.5.33502.453
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilmSystem.Domain", "FilmSystem.Domain\FilmSystem.Domain.csproj", "{53403DAC-3FDE-4C20-B4A8-8B7FEA3EF4B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FilmSystem.Infrastructure", "FilmSystem.Infrastructure\FilmSystem.Infrastructure.csproj", "{0954C489-9C6C-4C68-9432-5989116C3967}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilmSystem.Infrastructure", "FilmSystem.Infrastructure\FilmSystem.Infrastructure.csproj", "{0954C489-9C6C-4C68-9432-5989116C3967}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FilmSystem.API", "FilmSystem.API\FilmSystem.API.csproj", "{6A86B844-2596-4726-BA22-2230A074C6B7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilmSystem.API", "FilmSystem.API\FilmSystem.API.csproj", "{6A86B844-2596-4726-BA22-2230A074C6B7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{079AE773-7851-40D6-8431-52AB1B694056}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
