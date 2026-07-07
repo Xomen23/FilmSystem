@@ -50,10 +50,20 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<Program>());
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins("http://localhost:5173") // Vite default port
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 // Mora biti PRVI u pipeline-u da bi mogao da uhvati greske iz svega sto dolazi posle njega
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseCors();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
