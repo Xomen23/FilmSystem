@@ -1,3 +1,4 @@
+using FilmSystem.API.Middleware;
 using FilmSystem.API.Services;
 using FilmSystem.API.Services.Omdb;
 using FilmSystem.Domain.Repositories;
@@ -46,6 +47,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Sc
 builder.Services.AddFluentValidationAutoValidation();
 
 var app = builder.Build();
+
+// Mora biti PRVI u pipeline-u da bi mogao da uhvati greske iz svega sto dolazi posle njega
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

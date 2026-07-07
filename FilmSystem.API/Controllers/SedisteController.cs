@@ -33,6 +33,66 @@ namespace FilmSystem.API.Controllers
             });
         }
 
+        // POST api/sedista
+        // Za dodavanje pojedinacnog sedista u vec postojecu salu (van auto-generisanja
+        // koje se desava pri kreiranju Sale).
+        [HttpPost]
+        public ActionResult<SedisteDto> Create(SedisteCreateDto dto)
+        {
+            var sediste = new Sediste
+            {
+                SalaId = dto.SalaId,
+                BrojReda = dto.BrojReda,
+                BrojMesta = dto.BrojMesta
+            };
+
+            _unitOfWork.Sedista.Add(sediste);
+            _unitOfWork.SaveChanges();
+
+            var rezultat = new SedisteDto
+            {
+                Id = sediste.Id,
+                BrojReda = sediste.BrojReda,
+                BrojMesta = sediste.BrojMesta,
+                SalaId = sediste.SalaId
+            };
+
+            return CreatedAtAction(nameof(GetById), new { id = sediste.Id }, rezultat);
+        }
+
+        // PUT api/sedista/5
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, SedisteUpdateDto dto)
+        {
+            var sediste = _unitOfWork.Sedista.GetById(id);
+            if (sediste == null)
+                return NotFound($"Sediste sa Id {id} ne postoji.");
+
+            sediste.BrojReda = dto.BrojReda;
+            sediste.BrojMesta = dto.BrojMesta;
+
+            _unitOfWork.Sedista.Update(sediste);
+            _unitOfWork.SaveChanges();
+
+            return NoContent();
+        }
+
+        // DELETE api/sedista/5
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            var sediste = _unitOfWork.Sedista.GetById(id);
+            if (sediste == null)
+                return NotFound($"Sediste sa Id {id} ne postoji.");
+
+            // OnDelete(Restrict) na Rezervacija->Sediste ce baciti DbUpdateException
+            // ako ovo sediste ima rezervacije - hvata je globalni ExceptionHandlingMiddleware.
+            _unitOfWork.Sedista.Remove(sediste);
+            _unitOfWork.SaveChanges();
+
+            return NoContent();
+        }
+
         // GET api/sale/{salaId}/projekcije/{projekcijaId}/sedista
         // "~" ignorise "api/sedista" prefiks ove kontroler-klase i koristi apsolutnu rutu -
         // stavljamo je ovde (a ne u SalaController) jer je logicki najblizа Sedistu:
