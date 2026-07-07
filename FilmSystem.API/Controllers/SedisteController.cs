@@ -1,6 +1,7 @@
 using FilmSystem.API.DTOs.Sediste;
-using FilmSystem.Domain.Models;
-using FilmSystem.Domain.Repositories;
+using FilmSystem.API.Features.Sediste.Commands;
+using FilmSystem.API.Features.Sediste.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FilmSystem.API.Controllers
@@ -9,127 +10,43 @@ namespace FilmSystem.API.Controllers
     [Route("api/sedista")]
     public class SedisteController : ControllerBase
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMediator _mediator;
+        public SedisteController(IMediator mediator) => _mediator = mediator;
 
-        public SedisteController(IUnitOfWork unitOfWork)
-        {
-            _unitOfWork = unitOfWork;
-        }
-
-        // GET api/sedista/5
         [HttpGet("{id}")]
-        public ActionResult<SedisteDto> GetById(int id)
+        public async Task<ActionResult<SedisteDto>> GetById(int id)
         {
-            var sediste = _unitOfWork.Sedista.GetById(id);
-            if (sediste == null)
-                return NotFound($"Sediste sa Id {id} ne postoji.");
-
-            return Ok(new SedisteDto
-            {
-                Id = sediste.Id,
-                BrojReda = sediste.BrojReda,
-                BrojMesta = sediste.BrojMesta,
-                SalaId = sediste.SalaId
-            });
+            var s = await _mediator.Send(new GetSedisteByIdQuery(id));
+            return s == null ? NotFound($"Sediste sa Id {id} ne postoji.") : Ok(s);
         }
 
-        // POST api/sedista
-        // Za dodavanje pojedinacnog sedista u vec postojecu salu (van auto-generisanja
-        // koje se desava pri kreiranju Sale).
-        [HttpPost]
-        public ActionResult<SedisteDto> Create(SedisteCreateDto dto)
-        {
-            var sediste = new Sediste
-            {
-                SalaId = dto.SalaId,
-                BrojReda = dto.BrojReda,
-                BrojMesta = dto.BrojMesta
-            };
-
-            _unitOfWork.Sedista.Add(sediste);
-            _unitOfWork.SaveChanges();
-
-            var rezultat = new SedisteDto
-            {
-                Id = sediste.Id,
-                BrojReda = sediste.BrojReda,
-                BrojMesta = sediste.BrojMesta,
-                SalaId = sediste.SalaId
-            };
-
-            return CreatedAtAction(nameof(GetById), new { id = sediste.Id }, rezultat);
-        }
-
-        // PUT api/sedista/5
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, SedisteUpdateDto dto)
-        {
-            var sediste = _unitOfWork.Sedista.GetById(id);
-            if (sediste == null)
-                return NotFound($"Sediste sa Id {id} ne postoji.");
-
-            sediste.BrojReda = dto.BrojReda;
-            sediste.BrojMesta = dto.BrojMesta;
-
-            _unitOfWork.Sedista.Update(sediste);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
-        }
-
-        // DELETE api/sedista/5
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
-        {
-            var sediste = _unitOfWork.Sedista.GetById(id);
-            if (sediste == null)
-                return NotFound($"Sediste sa Id {id} ne postoji.");
-
-            // OnDelete(Restrict) na Rezervacija->Sediste ce baciti DbUpdateException
-            // ako ovo sediste ima rezervacije - hvata je globalni ExceptionHandlingMiddleware.
-            _unitOfWork.Sedista.Remove(sediste);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
-        }
-
-        // GET api/sale/{salaId}/projekcije/{projekcijaId}/sedista
-        // "~" ignorise "api/sedista" prefiks ove kontroler-klase i koristi apsolutnu rutu -
-        // stavljamo je ovde (a ne u SalaController) jer je logicki najblizа Sedistu:
-        // vraca listu SVIH sedista u sali sa oznakom da li su slobodna za tu konkretnu projekciju.
         [HttpGet("~/api/sale/{salaId}/projekcije/{projekcijaId}/sedista")]
-        public ActionResult<IEnumerable<SedisteStatusDto>> GetSematskiPrikaz(int salaId, int projekcijaId)
+        public async Task<ActionResult<IEnumerable<SedisteStatusDto>>> GetSematskiPrikaz(int salaId, int projekcijaId)
         {
-            var projekcija = _unitOfWork.Projekcije.GetById(projekcijaId);
-            if (projekcija == null)
-                return NotFound($"Projekcija sa Id {projekcijaId} ne postoji.");
+            try { return Ok(await _mediator.Send(new GetSematskiPrikazQuery(salaId, projekcijaId))); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
 
-            if (projekcija.SalaId != salaId)
-                return BadRequest("Ta projekcija se ne odrzava u navedenoj sali.");
+        [HttpPost]
+        public async Task<ActionResult<SedisteDto>> Create(SedisteCreateDto dto)
+        {
+            var s = await _mediator.Send(new CreateSedisteCommand(dto));
+            return CreatedAtAction(nameof(GetById), new { id = s.Id }, s);
+        }
 
-            var sviSedista = _unitOfWork.Sedista
-                .Find(s => s.SalaId == salaId)
-                .OrderBy(s => s.BrojReda)
-                .ThenBy(s => s.BrojMesta)
-                .ToList();
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, SedisteUpdateDto dto)
+        {
+            try { await _mediator.Send(new UpdateSedisteCommand(id, dto)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+        }
 
-            // Sedista koja imaju rezervaciju sa "aktivnim" statusom se racunaju kao zauzeta.
-            // Otkazana/Istekla rezervacija oslobadja sediste.
-            var zauzetaSedistaIds = _unitOfWork.Rezervacije
-                .GetByProjekcija(projekcijaId)
-                .Where(r => r.Status != StatusRezervacije.Otkazana && r.Status != StatusRezervacije.Istekla)
-                .Select(r => r.SedisteId)
-                .ToHashSet();
-
-            var rezultat = sviSedista.Select(s => new SedisteStatusDto
-            {
-                Id = s.Id,
-                BrojReda = s.BrojReda,
-                BrojMesta = s.BrojMesta,
-                Slobodno = !zauzetaSedistaIds.Contains(s.Id)
-            });
-
-            return Ok(rezultat);
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try { await _mediator.Send(new DeleteSedisteCommand(id)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         }
     }
 }

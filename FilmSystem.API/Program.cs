@@ -46,6 +46,10 @@ builder.Services.AddScoped<IOmdbService, OmdbService>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Scoped);
 builder.Services.AddFluentValidationAutoValidation();
 
+// MediatR - automatski trazi sve Handler klase u API assembly-ju
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssemblyContaining<Program>());
+
 var app = builder.Build();
 
 // Mora biti PRVI u pipeline-u da bi mogao da uhvati greske iz svega sto dolazi posle njega

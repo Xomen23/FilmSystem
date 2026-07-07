@@ -9,26 +9,28 @@ namespace FilmSystem.API.Validators
     {
         public RezervacijaCreateDtoValidator(IUnitOfWork unitOfWork)
         {
+            // POPRAVLJENO: Sinhrona provera projekcije
             RuleFor(x => x.ProjekcijаId)
-                .MustAsync((id, ct) => Task.FromResult(unitOfWork.Projekcije.GetById(id) != null))
+                .Must(id => unitOfWork.Projekcije.GetById(id) != null)
                 .WithMessage(x => $"Projekcija sa Id {x.ProjekcijаId} ne postoji.");
 
+            // POPRAVLJENO: Sinhrona provera sjedišta
             RuleFor(x => x.SedisteId)
-                .MustAsync((id, ct) => Task.FromResult(unitOfWork.Sedista.GetById(id) != null))
+                .Must(id => unitOfWork.Sedista.GetById(id) != null)
                 .WithMessage(x => $"Sediste sa Id {x.SedisteId} ne postoji.");
 
-            // Sediste mora fizicki pripadati sali u kojoj se odrzava ta projekcija
+            // Sjedište mora fizički pripadati sali u kojoj se održava ta projekcija
             RuleFor(x => x)
                 .Must(dto =>
                 {
                     var projekcija = unitOfWork.Projekcije.GetById(dto.ProjekcijаId);
                     var sediste = unitOfWork.Sedista.GetById(dto.SedisteId);
-                    if (projekcija == null || sediste == null) return true; // to vec hvataju gornja pravila
+                    if (projekcija == null || sediste == null) return true; // to već hvataju gornja pravila
                     return sediste.SalaId == projekcija.SalaId;
                 })
                 .WithMessage("Odabrano sediste se ne nalazi u sali gde se odrzava ta projekcija.");
 
-            // Sediste ne sme vec biti aktivno rezervisano za tu projekciju
+            // Sjedište ne smije već biti aktivno rezervisano za tu projekciju
             RuleFor(x => x)
                 .Must(dto =>
                 {

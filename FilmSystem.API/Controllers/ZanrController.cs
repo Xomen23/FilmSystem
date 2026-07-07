@@ -1,6 +1,7 @@
 using FilmSystem.API.DTOs.Zanr;
-using FilmSystem.Domain.Models;
-using FilmSystem.Domain.Repositories;
+using FilmSystem.API.Features.Zanr.Commands;
+using FilmSystem.API.Features.Zanr.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FilmSystem.API.Controllers
@@ -9,86 +10,40 @@ namespace FilmSystem.API.Controllers
     [Route("api/zanrovi")]
     public class ZanrController : ControllerBase
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMediator _mediator;
+        public ZanrController(IMediator mediator) => _mediator = mediator;
 
-        public ZanrController(IUnitOfWork unitOfWork)
-        {
-            _unitOfWork = unitOfWork;
-        }
-
-        // GET api/zanrovi
         [HttpGet]
-        public ActionResult<IEnumerable<ZanrDto>> GetAll()
-        {
-            var zanrovi = _unitOfWork.Zanrovi.GetAll().Select(ToDto);
-            return Ok(zanrovi);
-        }
+        public async Task<ActionResult<IEnumerable<ZanrDto>>> GetAll()
+            => Ok(await _mediator.Send(new GetAllZanroviQuery()));
 
-        // GET api/zanrovi/5
         [HttpGet("{id}")]
-        public ActionResult<ZanrDto> GetById(int id)
+        public async Task<ActionResult<ZanrDto>> GetById(int id)
         {
-            var zanr = _unitOfWork.Zanrovi.GetById(id);
-            if (zanr == null)
-                return NotFound($"Zanr sa Id {id} ne postoji.");
-
-            return Ok(ToDto(zanr));
+            var zanr = await _mediator.Send(new GetZanrByIdQuery(id));
+            return zanr == null ? NotFound($"Zanr sa Id {id} ne postoji.") : Ok(zanr);
         }
 
-        // POST api/zanrovi
         [HttpPost]
-        public ActionResult<ZanrDto> Create(ZanrCreateDto dto)
+        public async Task<ActionResult<ZanrDto>> Create(ZanrCreateDto dto)
         {
-            var zanr = new Zanr
-            {
-                Naziv = dto.Naziv
-            };
-
-            _unitOfWork.Zanrovi.Add(zanr);
-            _unitOfWork.SaveChanges();
-
-            return CreatedAtAction(nameof(GetById), new { id = zanr.Id }, ToDto(zanr));
+            var zanr = await _mediator.Send(new CreateZanrCommand(dto));
+            return CreatedAtAction(nameof(GetById), new { id = zanr.Id }, zanr);
         }
 
-        // PUT api/zanrovi/5
         [HttpPut("{id}")]
-        public IActionResult Update(int id, ZanrUpdateDto dto)
+        public async Task<IActionResult> Update(int id, ZanrUpdateDto dto)
         {
-            var zanr = _unitOfWork.Zanrovi.GetById(id);
-            if (zanr == null)
-                return NotFound($"Zanr sa Id {id} ne postoji.");
-
-            zanr.Naziv = dto.Naziv;
-            _unitOfWork.Zanrovi.Update(zanr);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new UpdateZanrCommand(id, dto)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         }
 
-        // DELETE api/zanrovi/5
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var zanr = _unitOfWork.Zanrovi.GetById(id);
-            if (zanr == null)
-                return NotFound($"Zanr sa Id {id} ne postoji.");
-
-            // OnDelete(Restrict) na Film->Zanr: ako zanr ima filmove, baza ce
-            // odbiti brisanje (FK constraint) - hvatamo to lepom porukom
-            // umesto da pustimo 500 sa SQL exception-om.
-            if (_unitOfWork.Filmovi.Find(f => f.ZanrId == id).Any())
-                return Conflict($"Zanr sa Id {id} ne moze biti obrisan jer postoje filmovi tog zanra.");
-
-            _unitOfWork.Zanrovi.Remove(zanr);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new DeleteZanrCommand(id)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
-
-        private static ZanrDto ToDto(Zanr zanr) => new()
-        {
-            Id = zanr.Id,
-            Naziv = zanr.Naziv
-        };
     }
 }

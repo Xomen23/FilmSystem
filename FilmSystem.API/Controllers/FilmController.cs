@@ -1,7 +1,9 @@
 using FilmSystem.API.DTOs.Film;
+using FilmSystem.API.Features.Film.Commands;
+using FilmSystem.API.Features.Film.Queries;
 using FilmSystem.API.Services.Omdb;
-using FilmSystem.Domain.Models;
 using FilmSystem.Domain.Repositories;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FilmSystem.API.Controllers
@@ -10,185 +12,82 @@ namespace FilmSystem.API.Controllers
     [Route("api/filmovi")]
     public class FilmController : ControllerBase
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IOmdbService _omdbService;
+        private readonly IMediator _mediator;
+        private readonly IUnitOfWork _uow; // samo za provere pre Send()
 
-        public FilmController(IUnitOfWork unitOfWork, IOmdbService omdbService)
+        public FilmController(IMediator mediator, IUnitOfWork uow)
         {
-            _unitOfWork = unitOfWork;
-            _omdbService = omdbService;
+            _mediator = mediator;
+            _uow = uow;
         }
 
-        // GET api/filmovi
         [HttpGet]
-        public ActionResult<IEnumerable<FilmDto>> GetAll()
-        {
-            // FilmRepository.GetAll() vec radi .Include(f => f.Zanr)
-            var filmovi = _unitOfWork.Filmovi.GetAll().Select(ToDto);
-            return Ok(filmovi);
-        }
+        public async Task<ActionResult<IEnumerable<FilmDto>>> GetAll()
+            => Ok(await _mediator.Send(new GetAllFilmoviQuery()));
 
-        // GET api/filmovi/5
         [HttpGet("{id}")]
-        public ActionResult<FilmDto> GetById(int id)
+        public async Task<ActionResult<FilmDto>> GetById(int id)
         {
-            var film = _unitOfWork.Filmovi.GetById(id);
-            if (film == null)
-                return NotFound($"Film sa Id {id} ne postoji.");
-
-            return Ok(ToDto(film));
+            var film = await _mediator.Send(new GetFilmByIdQuery(id));
+            return film == null ? NotFound($"Film sa Id {id} ne postoji.") : Ok(film);
         }
 
-        // GET api/filmovi/zanr/3
         [HttpGet("zanr/{zanrId}")]
-        public ActionResult<IEnumerable<FilmDto>> GetByZanr(int zanrId)
+        public async Task<ActionResult<IEnumerable<FilmDto>>> GetByZanr(int zanrId)
         {
-            if (_unitOfWork.Zanrovi.GetById(zanrId) == null)
+            if (_uow.Zanrovi.GetById(zanrId) == null)
                 return NotFound($"Zanr sa Id {zanrId} ne postoji.");
-
-            var filmovi = _unitOfWork.Filmovi.GetByZanr(zanrId).Select(ToDto);
-            return Ok(filmovi);
+            return Ok(await _mediator.Send(new GetFilmoviByZanrQuery(zanrId)));
         }
 
-        // GET api/filmovi/godina/1999
         [HttpGet("godina/{godina}")]
-        public ActionResult<IEnumerable<FilmDto>> GetByGodina(int godina)
-        {
-            var filmovi = _unitOfWork.Filmovi.GetByGodina(godina).Select(ToDto);
-            return Ok(filmovi);
-        }
+        public async Task<ActionResult<IEnumerable<FilmDto>>> GetByGodina(int godina)
+            => Ok(await _mediator.Send(new GetFilmoviByGodinaQuery(godina)));
 
-        // POST api/filmovi
-        // Rucno kreiranje filma, bez OMDb-a (npr. film koji ne postoji u OMDb bazi).
         [HttpPost]
-        public ActionResult<FilmDto> Create(FilmCreateDto dto)
+        public async Task<ActionResult<FilmDto>> Create(FilmCreateDto dto)
         {
-            var film = new Film
-            {
-                Naziv = dto.Naziv,
-                Godina = dto.Godina,
-                TrajanjeMin = dto.TrajanjeMin,
-                ImdbId = dto.ImdbId,
-                Opis = dto.Opis,
-                Poster = dto.Poster,
-                ZanrId = dto.ZanrId
-            };
-
-            _unitOfWork.Filmovi.Add(film);
-            _unitOfWork.SaveChanges();
-
-            film = _unitOfWork.Filmovi.GetById(film.Id)!; // ucitamo Zanr za DTO
-            return CreatedAtAction(nameof(GetById), new { id = film.Id }, ToDto(film));
+            var film = await _mediator.Send(new CreateFilmCommand(dto));
+            return CreatedAtAction(nameof(GetById), new { id = film.Id }, film);
         }
 
-        // POST api/filmovi/import/tt0111161
-        // Povlaci podatke sa OMDb-a (naziv, godina, trajanje, opis, poster) i pravi Film.
-        // Body: { "zanrId": 1 } - zanr se ne uzima sa OMDb-a, vec ga korisnik bira
-        // iz vec postojecih Zanr redova (videti FilmImportDto).
         [HttpPost("import/{imdbId}")]
         public async Task<ActionResult<FilmDto>> ImportFromOmdb(string imdbId, FilmImportDto dto, CancellationToken ct)
         {
-            if (_unitOfWork.Zanrovi.GetById(dto.ZanrId) == null)
+            if (_uow.Zanrovi.GetById(dto.ZanrId) == null)
                 return BadRequest($"Zanr sa Id {dto.ZanrId} ne postoji.");
-
-            if (_unitOfWork.Filmovi.GetByImdbId(imdbId) != null)
+            if (_uow.Filmovi.GetByImdbId(imdbId) != null)
                 return Conflict($"Film sa ImdbId {imdbId} vec postoji u bazi.");
 
-            OmdbFilmData? omdbData;
             try
             {
-                omdbData = await _omdbService.GetByImdbIdAsync(imdbId, ct);
+                var film = await _mediator.Send(new ImportFilmCommand(imdbId, dto.ZanrId), ct);
+                return CreatedAtAction(nameof(GetById), new { id = film.Id }, film);
             }
-            catch (OmdbException ex)
-            {
-                // OMDb je nedostupan/timeout nakon retry pokusaja - 502 Bad Gateway
-                // je ispravniji signal klijentu nego generisan 500.
-                return StatusCode(StatusCodes.Status502BadGateway, ex.Message);
-            }
-
-            if (omdbData == null)
-                return NotFound($"OMDb ne prepoznaje ImdbId '{imdbId}'.");
-
-            var film = new Film
-            {
-                Naziv = omdbData.Naziv,
-                Godina = omdbData.Godina,
-                TrajanjeMin = omdbData.TrajanjeMin,
-                Opis = omdbData.Opis,
-                Poster = omdbData.Poster,
-                ImdbId = omdbData.ImdbId,
-                ZanrId = dto.ZanrId
-            };
-
-            _unitOfWork.Filmovi.Add(film);
-            _unitOfWork.SaveChanges();
-
-            film = _unitOfWork.Filmovi.GetById(film.Id)!;
-            return CreatedAtAction(nameof(GetById), new { id = film.Id }, ToDto(film));
+            catch (OmdbException ex) { return StatusCode(502, ex.Message); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         }
 
-        // PUT api/filmovi/5
         [HttpPut("{id}")]
-        public IActionResult Update(int id, FilmUpdateDto dto)
+        public async Task<IActionResult> Update(int id, FilmUpdateDto dto)
         {
-            var film = _unitOfWork.Filmovi.GetById(id);
-            if (film == null)
-                return NotFound($"Film sa Id {id} ne postoji.");
-
-            film.Naziv = dto.Naziv;
-            film.Godina = dto.Godina;
-            film.TrajanjeMin = dto.TrajanjeMin;
-            film.Opis = dto.Opis;
-            film.Poster = dto.Poster;
-            film.ZanrId = dto.ZanrId;
-
-            _unitOfWork.Filmovi.Update(film);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new UpdateFilmCommand(id, dto)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         }
 
-        // GET api/filmovi/search-external?naziv=avengers
         [HttpGet("search-external")]
         public async Task<ActionResult<IEnumerable<OmdbSearchItem>>> SearchExternal([FromQuery] string naziv, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(naziv))
-                return BadRequest("Naziv za pretragu je obavezan.");
-
-            var rezultati = await _omdbService.SearchByTitleAsync(naziv, ct);
-            return Ok(rezultati);
+            if (string.IsNullOrWhiteSpace(naziv)) return BadRequest("Naziv je obavezan.");
+            return Ok(await _mediator.Send(new SearchExternalQuery(naziv), ct));
         }
 
-        // DELETE api/filmovi/5
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var film = _unitOfWork.Filmovi.GetById(id);
-            if (film == null)
-                return NotFound($"Film sa Id {id} ne postoji.");
-
-            // OnDelete(Restrict) na Projekcija->Film: ako film ima zakazane
-            // projekcije, baza ce odbiti brisanje.
-            if (_unitOfWork.Projekcije.Find(p => p.FilmId == id).Any())
-                return Conflict($"Film sa Id {id} ne moze biti obrisan jer ima zakazane projekcije.");
-
-            _unitOfWork.Filmovi.Remove(film);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new DeleteFilmCommand(id)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
-
-        private static FilmDto ToDto(Film film) => new()
-        {
-            Id = film.Id,
-            Naziv = film.Naziv,
-            Godina = film.Godina,
-            TrajanjeMin = film.TrajanjeMin,
-            ImdbId = film.ImdbId,
-            Opis = film.Opis,
-            Poster = film.Poster,
-            ZanrId = film.ZanrId,
-            ZanrNaziv = film.Zanr?.Naziv ?? string.Empty
-        };
     }
 }

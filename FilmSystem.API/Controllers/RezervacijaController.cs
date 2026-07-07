@@ -1,7 +1,8 @@
 using FilmSystem.API.DTOs.Rezervacija;
+using FilmSystem.API.Features.Rezervacija.Commands;
+using FilmSystem.API.Features.Rezervacija.Queries;
 using FilmSystem.API.Services;
-using FilmSystem.Domain.Models;
-using FilmSystem.Domain.Repositories;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FilmSystem.API.Controllers
@@ -10,103 +11,48 @@ namespace FilmSystem.API.Controllers
     [Route("api/rezervacije")]
     public class RezervacijaController : ControllerBase
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IRezervacijaStateMachineService _stateMachine;
+        private readonly IMediator _mediator;
+        public RezervacijaController(IMediator mediator) => _mediator = mediator;
 
-        public RezervacijaController(IUnitOfWork unitOfWork, IRezervacijaStateMachineService stateMachine)
-        {
-            _unitOfWork = unitOfWork;
-            _stateMachine = stateMachine;
-        }
-
-        // GET api/rezervacije
         [HttpGet]
-        public ActionResult<IEnumerable<RezervacijaDto>> GetAll()
-        {
-            return Ok(_unitOfWork.Rezervacije.GetAll().Select(ToDto));
-        }
+        public async Task<ActionResult<IEnumerable<RezervacijaDto>>> GetAll()
+            => Ok(await _mediator.Send(new GetAllRezervacijeQuery()));
 
-        // GET api/rezervacije/5
         [HttpGet("{id}")]
-        public ActionResult<RezervacijaDto> GetById(int id)
+        public async Task<ActionResult<RezervacijaDto>> GetById(int id)
         {
-            var rezervacija = _unitOfWork.Rezervacije.GetById(id);
-            if (rezervacija == null)
-                return NotFound($"Rezervacija sa Id {id} ne postoji.");
-
-            return Ok(ToDto(rezervacija));
+            var r = await _mediator.Send(new GetRezervacijaByIdQuery(id));
+            return r == null ? NotFound($"Rezervacija sa Id {id} ne postoji.") : Ok(r);
         }
 
-        // GET api/rezervacije/projekcija/5
         [HttpGet("projekcija/{projekcijaId}")]
-        public ActionResult<IEnumerable<RezervacijaDto>> GetByProjekcija(int projekcijaId)
-        {
-            return Ok(_unitOfWork.Rezervacije.GetByProjekcija(projekcijaId).Select(ToDto));
-        }
+        public async Task<ActionResult<IEnumerable<RezervacijaDto>>> GetByProjekcija(int projekcijaId)
+            => Ok(await _mediator.Send(new GetRezervacijeByProjekcijaQuery(projekcijaId)));
 
-        // POST api/rezervacije
-        // Validacija (Projekcija/Sediste postoje, sediste pripada toj sali,
-        // sediste nije vec aktivno rezervisano) se izvrsava kroz
-        // RezervacijaCreateDtoValidator pre ulaska ovde.
         [HttpPost]
-        public ActionResult<RezervacijaDto> Create(RezervacijaCreateDto dto)
+        public async Task<ActionResult<RezervacijaDto>> Create(RezervacijaCreateDto dto)
         {
-            var rezervacija = new Rezervacija
-            {
-                ProjekcijаId = dto.ProjekcijаId,
-                SedisteId = dto.SedisteId,
-                VremeKreiranja = DateTime.Now,
-                Status = StatusRezervacije.Kreirana
-            };
-
-            _unitOfWork.Rezervacije.Add(rezervacija);
-            _unitOfWork.SaveChanges();
-
-            return CreatedAtAction(nameof(GetById), new { id = rezervacija.Id }, ToDto(rezervacija));
+            var r = await _mediator.Send(new CreateRezervacijaCommand(dto));
+            return CreatedAtAction(nameof(GetById), new { id = r.Id }, r);
         }
 
-        // PUT api/rezervacije/5/potvrdi   (Kreirana -> Potvrdjana)
         [HttpPut("{id}/potvrdi")]
-        public IActionResult Potvrdi(int id) => PromeniStatus(id, RezervacijaTrigger.Potvrdi);
+        public async Task<IActionResult> Potvrdi(int id) => await PromeniStatus(id, RezervacijaTrigger.Potvrdi);
 
-        // PUT api/rezervacije/5/plati     (Potvrdjana -> Placena)
         [HttpPut("{id}/plati")]
-        public IActionResult Plati(int id) => PromeniStatus(id, RezervacijaTrigger.Plati);
+        public async Task<IActionResult> Plati(int id) => await PromeniStatus(id, RezervacijaTrigger.Plati);
 
-        // PUT api/rezervacije/5/otkazi    (Kreirana/Potvrdjana -> Otkazana)
         [HttpPut("{id}/otkazi")]
-        public IActionResult Otkazi(int id) => PromeniStatus(id, RezervacijaTrigger.Otkazi);
+        public async Task<IActionResult> Otkazi(int id) => await PromeniStatus(id, RezervacijaTrigger.Otkazi);
 
-        // PUT api/rezervacije/5/istekni   (Kreirana/Potvrdjana -> Istekla)
-        // Rucni okidac za sada - u produkciji bi ovo pozivao pozadinski servis
-        // (npr. IHostedService koji periodicno proverava rezervacije starije od X minuta).
         [HttpPut("{id}/istekni")]
-        public IActionResult Istekni(int id) => PromeniStatus(id, RezervacijaTrigger.Istekni);
+        public async Task<IActionResult> Istekni(int id) => await PromeniStatus(id, RezervacijaTrigger.Istekni);
 
-        private IActionResult PromeniStatus(int id, RezervacijaTrigger trigger)
+        private async Task<IActionResult> PromeniStatus(int id, RezervacijaTrigger trigger)
         {
-            var rezervacija = _unitOfWork.Rezervacije.GetById(id);
-            if (rezervacija == null)
-                return NotFound($"Rezervacija sa Id {id} ne postoji.");
-
-            if (!_stateMachine.MozeDaPredje(rezervacija, trigger))
-                return Conflict($"Iz statusa '{rezervacija.Status}' nije moguc prelaz '{trigger}'.");
-
-            _stateMachine.Fire(rezervacija, trigger);
-
-            _unitOfWork.Rezervacije.Update(rezervacija);
-            _unitOfWork.SaveChanges();
-
-            return Ok(ToDto(rezervacija));
+            try { return Ok(await _mediator.Send(new PromeniStatusCommand(id, trigger))); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
-
-        private static RezervacijaDto ToDto(Rezervacija r) => new()
-        {
-            Id = r.Id,
-            VremeKreiranja = r.VremeKreiranja,
-            Status = r.Status.ToString(),
-            ProjekcijаId = r.ProjekcijаId,
-            SedisteId = r.SedisteId
-        };
     }
 }

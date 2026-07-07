@@ -1,6 +1,7 @@
 using FilmSystem.API.DTOs.Sala;
-using FilmSystem.Domain.Models;
-using FilmSystem.Domain.Repositories;
+using FilmSystem.API.Features.Sala.Commands;
+using FilmSystem.API.Features.Sala.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FilmSystem.API.Controllers
@@ -9,104 +10,40 @@ namespace FilmSystem.API.Controllers
     [Route("api/sale")]
     public class SalaController : ControllerBase
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMediator _mediator;
+        public SalaController(IMediator mediator) => _mediator = mediator;
 
-        public SalaController(IUnitOfWork unitOfWork)
-        {
-            _unitOfWork = unitOfWork;
-        }
-
-        // GET api/sale
         [HttpGet]
-        public ActionResult<IEnumerable<SalaDto>> GetAll()
-        {
-            var sale = _unitOfWork.Sale.GetAll().Select(ToDto);
-            return Ok(sale);
-        }
+        public async Task<ActionResult<IEnumerable<SalaDto>>> GetAll()
+            => Ok(await _mediator.Send(new GetAllSaleQuery()));
 
-        // GET api/sale/5
         [HttpGet("{id}")]
-        public ActionResult<SalaDto> GetById(int id)
+        public async Task<ActionResult<SalaDto>> GetById(int id)
         {
-            var sala = _unitOfWork.Sale.GetById(id);
-            if (sala == null)
-                return NotFound($"Sala sa Id {id} ne postoji.");
-
-            return Ok(ToDto(sala));
+            var sala = await _mediator.Send(new GetSalaByIdQuery(id));
+            return sala == null ? NotFound($"Sala sa Id {id} ne postoji.") : Ok(sala);
         }
 
-        // POST api/sale
-        // Kad se sala napravi, odmah se generisu sva njena sedista
-        // (BrojRedova x MestaPoRedu), jer po konceptualnom modelu Sala (1,M) Sadrzi Sediste
-        // - sala bez sedista nema smisla.
         [HttpPost]
-        public ActionResult<SalaDto> Create(SalaCreateDto dto)
+        public async Task<ActionResult<SalaDto>> Create(SalaCreateDto dto)
         {
-            var sala = new Sala
-            {
-                Naziv = dto.Naziv,
-                BrojRedova = dto.BrojRedova,
-                MestaPoRedu = dto.MestaPoRedu
-            };
-
-            _unitOfWork.Sale.Add(sala);
-            _unitOfWork.SaveChanges(); // treba nam sala.Id pre nego sto napravimo sedista
-
-            for (int red = 1; red <= dto.BrojRedova; red++)
-            {
-                for (int mesto = 1; mesto <= dto.MestaPoRedu; mesto++)
-                {
-                    _unitOfWork.Sedista.Add(new Sediste
-                    {
-                        SalaId = sala.Id,
-                        BrojReda = red,
-                        BrojMesta = mesto
-                    });
-                }
-            }
-            _unitOfWork.SaveChanges();
-
-            return CreatedAtAction(nameof(GetById), new { id = sala.Id }, ToDto(sala));
+            var sala = await _mediator.Send(new CreateSalaCommand(dto));
+            return CreatedAtAction(nameof(GetById), new { id = sala.Id }, sala);
         }
 
-        // PUT api/sale/5
         [HttpPut("{id}")]
-        public IActionResult Update(int id, SalaUpdateDto dto)
+        public async Task<IActionResult> Update(int id, SalaUpdateDto dto)
         {
-            var sala = _unitOfWork.Sale.GetById(id);
-            if (sala == null)
-                return NotFound($"Sala sa Id {id} ne postoji.");
-
-            sala.Naziv = dto.Naziv;
-            _unitOfWork.Sale.Update(sala);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new UpdateSalaCommand(id, dto)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
         }
 
-        // DELETE api/sale/5
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var sala = _unitOfWork.Sale.GetById(id);
-            if (sala == null)
-                return NotFound($"Sala sa Id {id} ne postoji.");
-
-            // OnDelete(Restrict) na Projekcija->Sala ce baciti gresku iz baze
-            // ako sala ima zakazane projekcije - to hvatamo generickim exception
-            // handlerom (ili ovde try/catch ako zelimo lepsu poruku)
-            _unitOfWork.Sale.Remove(sala);
-            _unitOfWork.SaveChanges();
-
-            return NoContent();
+            try { await _mediator.Send(new DeleteSalaCommand(id)); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
-
-        private static SalaDto ToDto(Sala sala) => new()
-        {
-            Id = sala.Id,
-            Naziv = sala.Naziv,
-            BrojRedova = sala.BrojRedova,
-            MestaPoRedu = sala.MestaPoRedu
-        };
     }
 }
