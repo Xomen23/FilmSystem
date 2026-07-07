@@ -8,5 +8,9 @@ namespace FilmSystem.API.DTOs.Rezervacija
 
         public int ProjekcijаId { get; set; }
         public int SedisteId { get; set; }
+
+        public string FilmNaziv { get; set; }
+        public decimal CenaKarte { get; set; }
+        public int SedisteBroj { get; set; } 
     }
 }

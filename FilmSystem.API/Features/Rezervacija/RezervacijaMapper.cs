@@ -10,7 +10,13 @@ namespace FilmSystem.API.Features.Rezervacija
             VremeKreiranja = r.VremeKreiranja,
             Status = r.Status.ToString(),
             ProjekcijаId = r.ProjekcijаId,
-            SedisteId = r.SedisteId
+            SedisteId = r.SedisteId,
+
+            // DODAJ OVE LINIJE:
+            // Proveravamo usput da li su objekti null (pomoću ?) da aplikacija ne bi pukla
+            FilmNaziv = r.Projekcija?.Film?.Naziv ?? "Nepoznat Film",
+            CenaKarte = r.Projekcija?.CenaKarte ?? 0,
+            SedisteBroj = r.SedisteId // Ovde šaljemo čist ID sedišta koji frontend traži
         };
     }
 }
