@@ -96,12 +96,12 @@ export default function Rezervacije() {
               {rezervacije.map(r => (
                 <tr key={r.id} style={{ borderBottom: "1px solid #eee" }} onMouseEnter={(e) => e.currentTarget.style.background = "#fafafa"} onMouseLeave={(e) => e.currentTarget.style.background = "white"}>
                   
-                  {/* KOLONA FILM (NAZIV ILI PRIVREMENO PROJEKCIJA ID) */}
+                  {/* KOLONA FILM */}
                   <td style={{ ...td, fontWeight: "bold", color: "#333" }}>
                     {r.projekcijaFilmNaziv || r.filmNaziv || (r.projekcija && r.projekcija.film && r.projekcija.film.naziv) || `Projekcija ID: ${r.projekcijaId}`}
                   </td>
                   
-                  {/* SEDIŠTE (SAMO ID BROJ, BEZ SLOVA I TEKSTA) */}
+                  {/* SEDIŠTE  */}
                   <td style={td}>
                     {r.sedisteBrojReda && r.sedisteBrojMesta 
                       ? `Red ${r.sedisteBrojReda}, Mesto ${r.sedisteBrojMesta}` 

@@ -5,7 +5,6 @@ namespace FilmSystem.API.Services.Omdb
 {
     public class OmdbService : IOmdbService
     {
-        // Ime mora da se poklapa sa builder.Services.AddHttpClient("Omdb", ...) u Program.cs
         public const string HttpClientName = "Omdb";
 
         private readonly HttpClient _httpClient;
@@ -29,9 +28,7 @@ namespace FilmSystem.API.Services.Omdb
             OmdbResponse? omdb;
             try
             {
-                // BaseAddress je vec podesen na named HttpClient-u u Program.cs.
-                // Resilience handler (retry + timeout) je registrovan preko
-                // AddStandardResilienceHandler(), pa se ovde ne bavimo rucnim retry-jem.
+     
                 omdb = await _httpClient.GetFromJsonAsync<OmdbResponse>(
                     $"?apikey={apiKey}&i={Uri.EscapeDataString(imdbId)}", ct);
             }
@@ -41,8 +38,7 @@ namespace FilmSystem.API.Services.Omdb
             }
             catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
             {
-                // Resilience handler baca TaskCanceledException kad istekne timeout,
-                // razlikujemo to od "korisnik je otkazao zahtev" (ct.IsCancellationRequested).
+   
                 throw new OmdbException("OMDb API nije odgovorio na vreme (timeout).", ex);
             }
 
@@ -51,8 +47,7 @@ namespace FilmSystem.API.Services.Omdb
 
             if (!omdb.IsSuccess)
             {
-                // Response = "False" znaci da imdbId ne postoji u OMDb bazi -
-                // to nije greska sistema, vec "nije pronadjeno", pa vracamo null.
+
                 return null;
             }
 
@@ -67,7 +62,6 @@ namespace FilmSystem.API.Services.Omdb
             };
         }
 
-        // OMDb ponekad vraca "1994–2003" (serije) - uzimamo samo prve 4 cifre.
         private static int ParseYear(string? year)
         {
             if (string.IsNullOrWhiteSpace(year))
@@ -88,7 +82,6 @@ namespace FilmSystem.API.Services.Omdb
             return response?.SearchResults ?? Enumerable.Empty<OmdbSearchItem>();
         }
 
-        // OMDb vraca "148 min" - izvlacimo samo broj.
         private static int ParseRuntime(string? runtime)
         {
             if (string.IsNullOrWhiteSpace(runtime))

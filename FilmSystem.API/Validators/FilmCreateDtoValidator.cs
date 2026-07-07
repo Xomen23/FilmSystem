@@ -13,7 +13,7 @@ namespace FilmSystem.API.Validators
                 .MaximumLength(300);
 
             RuleFor(x => x.Godina)
-                .GreaterThan(1888).WithMessage("Godina nije realna.") // prvi ikada snimljeni film
+                .GreaterThan(1888).WithMessage("Godina nije realna.") 
                 .LessThanOrEqualTo(DateTime.Now.Year + 5);
 
             RuleFor(x => x.TrajanjeMin)

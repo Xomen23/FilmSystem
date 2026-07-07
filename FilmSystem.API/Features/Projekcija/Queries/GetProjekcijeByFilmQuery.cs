@@ -15,7 +15,6 @@ namespace FilmSystem.API.Features.Projekcija.Queries
         {
             var projekcije = _uow.Projekcije.Find(p => p.FilmId == request.FilmId);
 
-            // Eksplicitno prosleđujemo p i _uow u mapper unutar Select-a
             var rezultat = projekcije.Select(p => ProjekcijaMapper.ToDto(p, _uow));
 
             return Task.FromResult(rezultat);

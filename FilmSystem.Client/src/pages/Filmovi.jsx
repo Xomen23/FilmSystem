@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllFilmovi, searchExternal, importFilm } from "../api/filmovi";
-import axios from "axios"; // Uvozimo direktno axios da povučemo žanrove i sale
+import axios from "axios";
 
-// Ako tvoj backend radi na portu 7194, ovde definišemo osnovni URL za ove brze pozive
 const API_URL = "https://localhost:7194/api";
 
 export default function Filmovi() {
@@ -13,11 +12,9 @@ export default function Filmovi() {
   const [prikažiMeni, setPrikažiMeni] = useState(false);
   const navigate = useNavigate();
 
-  // Dinamički podaci sa backenda za select liste
   const [bazaZanrovi, setBazaZanrovi] = useState([]);
   const [bazaSale, setBazaSale] = useState([]);
 
-  // Stanja za Modal (Pop-up)
   const [prikažiModal, setPrikažiModal] = useState(false);
   const [izabraniFilm, setIzabraniFilm] = useState(null);
   
@@ -25,18 +22,16 @@ export default function Filmovi() {
   zanrId: "",
   salaId: "",
   cena: "500",
-  vreme: new Date(Date.now() + 86400000).toISOString().slice(0, 16) // Automatski stavlja sutrašnji dan i trenutno vreme kao predlog
+  vreme: new Date(Date.now() + 86400000).toISOString().slice(0, 16)
 });
 
   const osvežiLokalneFilmove = () => {
     getAllFilmovi().then(res => setFilmovi(res.data));
   };
 
-  // Učitavanje filmova, žanrova i sala sa backenda pri pokretanju
   useEffect(() => {
     osvežiLokalneFilmove();
 
-    // Direktan poziv ka tvojoj bazi za Žanrove
     axios.get(`${API_URL}/zanrovi`)
       .then(res => {
         setBazaZanrovi(res.data || []);
@@ -46,7 +41,6 @@ export default function Filmovi() {
       })
       .catch(err => console.error("Greška pri učitavanju žanrova:", err));
 
-    // Direktan poziv ka tvojoj bazi za Sale
     axios.get(`${API_URL}/sale`)
       .then(res => {
         setBazaSale(res.data || []);
@@ -102,7 +96,6 @@ export default function Filmovi() {
   }
 
   if (!konacanFilmId) {
-    // Ako je bacio 409 a nismo ga imali na prvu, probaćemo još jednom da pretražimo osveženu listu
     const ponovniPokusaj = filmovi.find(f => f.naziv.toLowerCase() === nazivFilma.toLowerCase());
     if (ponovniPokusaj) {
       konacanFilmId = ponovniPokusaj.id;
@@ -112,17 +105,14 @@ export default function Filmovi() {
     }
   }
 
-  // SPREMANJE DATUMA: Pretvaramo lokalno vreme iz inputa u ISO format bez slova "Z" na kraju
-  // jer .NET System.DateTime često puca kada dobije vremensku zonu 'Z' (UTC) ako je u bazi običan DateTime
   const izabranoVreme = formaPodaci.vreme ? new Date(formaPodaci.vreme).toISOString().replace("Z", "") : new Date().toISOString().replace("Z", "");
 
   try {
-    // Slanje na backend
     await axios.post(`${API_URL}/projekcije`, {
        filmId: parseInt(konacanFilmId), 
        salaId: parseInt(formaPodaci.salaId),
        cenaKarte: parseFloat(formaPodaci.cena),
-       datumVreme: izabranoVreme // Šaljemo očišćen datum čist za C#
+       datumVreme: izabranoVreme 
     });
 
     alert(`🎉 Uspešno!\nFilm: "${nazivFilma}" je uvršten na repertoar.\nProjekcija je kreirana!`);

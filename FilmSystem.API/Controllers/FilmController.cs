@@ -13,7 +13,7 @@ namespace FilmSystem.API.Controllers
     public class FilmController : ControllerBase
     {
         private readonly IMediator _mediator;
-        private readonly IUnitOfWork _uow; // samo za provere pre Send()
+        private readonly IUnitOfWork _uow; 
 
         public FilmController(IMediator mediator, IUnitOfWork uow)
         {

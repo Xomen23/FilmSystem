@@ -8,8 +8,6 @@ namespace FilmSystem.Infrastructure.Repositories
     {
         private readonly FilmSystemContext _context;
 
-        // ??= (lazy init) - repo se pravi tek kad se prvi put pristupi property-ju,
-        // a ne odmah pri kreiranju UnitOfWork-a
         private IRepository<Zanr>? _zanrovi;
         private IFilmRepository? _filmovi;
         private IRepository<Sala>? _sale;

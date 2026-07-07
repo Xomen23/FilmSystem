@@ -15,7 +15,6 @@ namespace FilmSystem.API.Features.Projekcija.Queries
         {
             var projekcije = _uow.Projekcije.GetAll();
 
-            // I ovde menjamo direktan poziv sa lambdom p => ...
             var rezultat = projekcije.Select(p => ProjekcijaMapper.ToDto(p, _uow));
 
             return Task.FromResult(rezultat);

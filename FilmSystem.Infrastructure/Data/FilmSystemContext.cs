@@ -18,8 +18,7 @@ namespace FilmSystem.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // ===== Zanr (1) - Film (M) =====
-            // Film mora imati zanr (obavezan FK), zabranjeno brisanje zanra dok ima filmove
+
             modelBuilder.Entity<Film>()
                 .HasOne(f => f.Zanr)
                 .WithMany(z => z.Filmovi)
@@ -27,8 +26,7 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ===== Sala (1) - Sediste (M) =====
-            // Sediste ne postoji bez sale -> brisanjem sale brisu se i sedista
+
             modelBuilder.Entity<Sediste>()
                 .HasOne(s => s.Sala)
                 .WithMany(sa => sa.Sedista)
@@ -36,8 +34,7 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ===== Film (1) - Projekcija (M) =====
-            // zabranjeno brisanje filma dok ima zakazanih projekcija
+
             modelBuilder.Entity<Projekcija>()
                 .HasOne(p => p.Film)
                 .WithMany(f => f.Projekcije)
@@ -45,8 +42,7 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ===== Sala (1) - Projekcija (M) =====
-            // zabranjeno brisanje sale dok ima zakazanih projekcija
+
             modelBuilder.Entity<Projekcija>()
                 .HasOne(p => p.Sala)
                 .WithMany(s => s.Projekcije)
@@ -54,8 +50,7 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ===== Projekcija (1) - Rezervacija (M) =====
-            // brisanjem projekcije brisu se i njene rezervacije
+
             modelBuilder.Entity<Rezervacija>()
                 .HasOne(r => r.Projekcija)
                 .WithMany(p => p.Rezervacije)
@@ -63,9 +58,7 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // ===== Sediste (1) - Rezervacija (M) =====
-            // zabranjeno brisanje sedista dok ima rezervacija (izbegava se i konflikt
-            // "multiple cascade paths" u SQL Serveru, jer Projekcija vec kaskadno brise)
+   
             modelBuilder.Entity<Rezervacija>()
                 .HasOne(r => r.Sediste)
                 .WithMany(s => s.Rezervacije)
@@ -73,7 +66,6 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ===== Dodatna podesavanja kolona =====
             modelBuilder.Entity<Projekcija>()
                 .Property(p => p.CenaKarte)
                 .HasColumnType("decimal(10,2)");
@@ -93,9 +85,6 @@ namespace FilmSystem.Infrastructure.Data
                 .IsRequired()
                 .HasMaxLength(100);
 
-            // ImdbId je jedinstven kad postoji (film moze biti dodat i bez OMDb podataka).
-            // HasFilter je bitan: SQL Server inace dozvoljava samo JEDNU NULL vrednost
-            // u unique indeksu, a nama ce vise filmova imati ImdbId = null.
             modelBuilder.Entity<Film>()
                 .HasIndex(f => f.ImdbId)
                 .IsUnique()

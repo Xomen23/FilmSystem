@@ -14,12 +14,12 @@ namespace FilmSystem.API.Validators
             RuleFor(x => x.CenaKarte)
                 .GreaterThan(0).WithMessage("Cena karte mora biti veca od 0.");
 
-            // POPRAVLJENO: Sinhrona provera filma (Prima samo filmId, bez ct i bez Task.FromResult)
+   
             RuleFor(x => x.FilmId)
                 .Must(filmId => unitOfWork.Filmovi.GetById(filmId) != null)
                 .WithMessage(x => $"Film sa Id {x.FilmId} ne postoji.");
 
-            // POPRAVLJENO: Sinhrona provera sale (Prima samo salaId, bez ct i bez Task.FromResult)
+  
             RuleFor(x => x.SalaId)
                 .Must(salaId => unitOfWork.Sale.GetById(salaId) != null)
                 .WithMessage(x => $"Sala sa Id {x.SalaId} ne postoji.");

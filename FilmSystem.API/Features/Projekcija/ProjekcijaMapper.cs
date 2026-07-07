@@ -5,7 +5,6 @@ namespace FilmSystem.API.Features.Projekcija
 {
     public static class ProjekcijaMapper
     {
-        // Dodajemo IUnitOfWork u parametre metode
         public static ProjekcijaDto ToDto(Domain.Models.Projekcija p, IUnitOfWork uow)
         {
             return new ProjekcijaDto
@@ -16,7 +15,7 @@ namespace FilmSystem.API.Features.Projekcija
                 FilmId = p.FilmId,
                 SalaId = p.SalaId,
 
-                // Ako p.Film fali, mapper ga sam povuče iz baze "on-the-fly"!
+
                 FilmNaziv = (p.Film ?? uow.Filmovi.GetById(p.FilmId))?.Naziv ?? string.Empty,
                 SalaNaziv = (p.Sala ?? uow.Sale.GetById(p.SalaId))?.Naziv ?? string.Empty
             };

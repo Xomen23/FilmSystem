@@ -12,7 +12,6 @@ namespace FilmSystem.API.Services
 
     public interface IRezervacijaStateMachineService
     {
-        // Baca InvalidOperationException ako prelaz nije dozvoljen iz trenutnog statusa
         void Fire(Rezervacija rezervacija, RezervacijaTrigger trigger);
 
         bool MozeDaPredje(Rezervacija rezervacija, RezervacijaTrigger trigger);

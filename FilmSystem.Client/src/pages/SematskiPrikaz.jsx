@@ -18,7 +18,6 @@ export default function SematskiPrikaz() {
 
   useEffect(() => { ucitaj(); }, [projekcijaId, salaId]);
 
-  // grupisemo sedista po redovima
   const redovi = sedista.reduce((acc, s) => {
     if (!acc[s.brojReda]) acc[s.brojReda] = [];
     acc[s.brojReda].push(s);
@@ -30,7 +29,7 @@ export default function SematskiPrikaz() {
     try {
       await createRezervacija(parseInt(projekcijaId), sediste.id);
       setPoruka(`✅ Rezervacija kreirana za Red ${sediste.brojReda}, Mesto ${sediste.brojMesta}`);
-      ucitaj(); // refresh prikaza
+      ucitaj();
     } catch (e) {
       setPoruka("❌ Greška pri kreiranju rezervacije.");
     }

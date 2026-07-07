@@ -15,7 +15,6 @@ namespace FilmSystem.API.Validators
                 .MustAsync((salaId, ct) => Task.FromResult(unitOfWork.Sale.GetById(salaId) != null))
                 .WithMessage(x => $"Sala sa Id {x.SalaId} ne postoji.");
 
-            // Ne sme vec postojati sediste sa istim BrojReda+BrojMesta u istoj sali
             RuleFor(x => x)
                 .Must(dto => !unitOfWork.Sedista
                     .Find(s => s.SalaId == dto.SalaId

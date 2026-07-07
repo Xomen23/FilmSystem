@@ -16,8 +16,6 @@ namespace FilmSystem.Infrastructure.Repositories
             _dbSet = context.Set<T>();
         }
 
-        // virtual - da FilmRepository/RezervacijaRepository mogu da override-uju
-        // i dodaju .Include() za povezane entitete kad im zatreba
         public virtual IEnumerable<T> GetAll() => _dbSet.ToList();
 
         public virtual T? GetById(int id) => _dbSet.Find(id);

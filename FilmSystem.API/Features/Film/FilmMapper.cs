@@ -2,7 +2,6 @@
 
 namespace FilmSystem.API.Features.Film
 {
-    // Statička helper klasa - zamenjuje privatni ToDto() koji je bio u kontroleru
     public static class FilmMapper
     {
         public static FilmDto ToDto(Domain.Models.Film film) => new()

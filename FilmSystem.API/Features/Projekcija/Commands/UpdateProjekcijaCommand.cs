@@ -16,7 +16,6 @@ namespace FilmSystem.API.Features.Projekcija.Commands
             var p = _uow.Projekcije.GetById(request.Id)
                 ?? throw new KeyNotFoundException($"Projekcija sa Id {request.Id} ne postoji.");
 
-            // Menjamo samo ono što stvarno postoji u DTO-u
             p.DatumVreme = request.Dto.DatumVreme;
             p.CenaKarte = request.Dto.CenaKarte;
 

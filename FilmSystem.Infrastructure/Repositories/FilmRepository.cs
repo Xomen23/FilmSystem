@@ -11,8 +11,6 @@ namespace FilmSystem.Infrastructure.Repositories
         {
         }
 
-        // override-ujemo GetAll/GetById da odmah ucitaju i Zanr (izbegavamo N+1 upite
-        // i lazy-loading probleme, pošto lazy loading nije ukljucen)
         public override IEnumerable<Film> GetAll() =>
             _dbSet.Include(f => f.Zanr).ToList();
 

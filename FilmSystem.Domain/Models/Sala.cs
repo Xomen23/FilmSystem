@@ -13,9 +13,6 @@ namespace FilmSystem.Domain.Models
         public int BrojRedova { get; set; }
         public int MestaPoRedu { get; set; }
 
-        // ukupan broj mesta = BrojRedova * MestaPoRedu
-        // ne cuvamo kao posebno polje jer se izracunava
-
         public List<Sediste> Sedista { get; set; } = new();
         public List<Projekcija> Projekcije { get; set; } = new();
     }

@@ -19,7 +19,6 @@ namespace FilmSystem.API.Features.Film.Commands
 
         public async Task<FilmDto> Handle(ImportFilmCommand request, CancellationToken ct)
         {
-            // validacija zanra i duplikata je u kontroleru pre Send()
             var omdbData = await _omdb.GetByImdbIdAsync(request.ImdbId, ct);
             if (omdbData == null)
                 throw new KeyNotFoundException($"OMDb ne prepoznaje ImdbId '{request.ImdbId}'.");

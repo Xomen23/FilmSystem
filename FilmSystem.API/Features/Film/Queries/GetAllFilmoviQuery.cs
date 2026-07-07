@@ -4,7 +4,6 @@ using MediatR;
 
 namespace FilmSystem.API.Features.Film.Queries
 {
-    // IRequest<T> znaci "ovo je zahtev koji vraca T"
     public record GetAllFilmoviQuery : IRequest<IEnumerable<FilmDto>>;
 
     public class GetAllFilmoviHandler : IRequestHandler<GetAllFilmoviQuery, IEnumerable<FilmDto>>

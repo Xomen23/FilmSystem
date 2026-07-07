@@ -20,7 +20,7 @@ namespace FilmSystem.API.Features.Sala.Commands
                 MestaPoRedu = request.Dto.MestaPoRedu
             };
 
-            // auto-generisanje sedista na osnovu dimenzija sale
+
             for (int red = 1; red <= sala.BrojRedova; red++)
                 for (int mesto = 1; mesto <= sala.MestaPoRedu; mesto++)
                     sala.Sedista.Add(new Domain.Models.Sediste { BrojReda = red, BrojMesta = mesto });

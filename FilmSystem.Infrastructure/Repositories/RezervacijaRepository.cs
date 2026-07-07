@@ -26,9 +26,6 @@ namespace FilmSystem.Infrastructure.Repositories
                   .Where(r => r.ProjekcijаId == projekcijaId)
                   .ToList();
 
-        // Vraca sedista u sali date projekcije koja NEMAJU aktivnu rezervaciju.
-        // "Aktivna" = svaki status osim Otkazana/Istekla - ta sedista se smatraju
-        // ponovo slobodnim (state machine logika iz Rezervacija kontrolera).
         public IEnumerable<Sediste> GetSlobodnaSedista(int projekcijaId)
         {
             var projekcija = _context.Projekcije
